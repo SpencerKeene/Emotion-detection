@@ -1,12 +1,15 @@
 from multiprocessing import Process, Array
 import socket
+import argparse
 
 HOST = '127.0.0.1'
 PORT = 34012
 
-def emotion_detection_process(emotion_state):
+def emotion_detection_process(emotion_state, mode):
+    """
+    Child process for real-time detection of player's emotion or training of the emotion detection model
+    """
     import numpy as np
-    import argparse
     import matplotlib.pyplot as plt
     import cv2
     from tensorflow.keras.models import Sequential
@@ -18,11 +21,6 @@ def emotion_detection_process(emotion_state):
     import os
 
     os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
-
-    # command line argument
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--mode",help="train/display")
-    mode = ap.parse_args().mode
 
     # plots accuracy and loss curves
     def plot_model_history(model_history):
@@ -137,11 +135,12 @@ def emotion_detection_process(emotion_state):
                 emotion_string = emotion_dict[maxindex]
                 cv2.putText(frame, emotion_string, (x+20, y-60), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
                 
+                # Update the current emotion used by the server process
                 with emotion_state.get_lock():
-                    print(f'===== set emotion_state.value: {emotion_string} -> {str.encode(emotion_string)}')
+                    print(f'===== setting emotion: {emotion_string} -> {str.encode(emotion_string)}')
                     emotion_state.value = str.encode(emotion_string)
 
-            cv2.imshow('Video', cv2.resize(frame,(1600,960),interpolation = cv2.INTER_CUBIC))
+            cv2.imshow('Video', cv2.resize(frame,(800,480),interpolation = cv2.INTER_CUBIC))
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
 
@@ -149,27 +148,42 @@ def emotion_detection_process(emotion_state):
         cv2.destroyAllWindows()
 
 def emotion_server_process(emotion_state):
+    """
+    Child process for creating a server to broadcast the current player's emotion
+    """
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.bind((HOST, PORT))
         s.listen()
         print(f'listing on port {PORT}')
         while True:
             conn, addr = s.accept()
+            # When client asks for emotion, send emotion as utf-8 string
             with conn, emotion_state.get_lock():
                 print(f"Connected by {addr}, sending {emotion_state.value}")
                 conn.sendall(emotion_state.value)
 
 
 if __name__ == '__main__':
+    # initialize emotion as a string at least as long as the longest emotion
     emotion_state = Array('c', str.encode('xxxxxxxxx'))
 
-    p_emotion_detection = Process(target=emotion_detection_process, args=[emotion_state])
+    # command line argument
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--mode",help="train/display")
+    mode = ap.parse_args().mode
+
+    # Start the emotion detection process for handling real-time detection of player's emotion or training of model
+    p_emotion_detection = Process(target=emotion_detection_process, args=[emotion_state, mode])
     p_emotion_detection.daemon = True
     p_emotion_detection.start()
 
-    p_emotion_server = Process(target=emotion_server_process, args=[emotion_state])
-    p_emotion_server.daemon = True
-    p_emotion_server.start()
+    # If mode is 'display', start the server process for handling sending recognized emotion to client processes
+    if mode == "display":
+        p_emotion_server = Process(target=emotion_server_process, args=[emotion_state])
+        p_emotion_server.daemon = True
+        p_emotion_server.start()
 
+    # Loop infinitely to keep program running
+    # This makes it easier to kill child processes in the terminal by just killing this process with CTRL+C
     while True:
         pass
