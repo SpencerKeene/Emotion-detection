@@ -19,6 +19,7 @@ def emotion_detection_process(emotion_state, mode):
     from tensorflow.keras.layers import MaxPooling2D
     from tensorflow.keras.preprocessing.image import ImageDataGenerator
     import os
+    import time
 
     os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
@@ -115,6 +116,37 @@ def emotion_detection_process(emotion_state, mode):
         # dictionary which assigns each label an emotion (alphabetical order)
         emotion_dict = {0: "Angry", 1: "Disgusted", 2: "Fearful", 3: "Happy", 4: "Neutral", 5: "Sad", 6: "Surprised"}
 
+        # create store of past emotions
+        class Emotion:
+            def __init__(self, emotion_string):
+                self.emotion_string = emotion_string
+                self.time_recorded = time.time()
+            
+            def is_outdated(self, max_age_seconds = 1.0):
+                now = time.time()
+                return now > self.time_recorded + max_age_seconds
+
+        class EmotionStore:
+            def __init__(self):
+                self.past_emotions = []
+
+            def add(self, emotion_string):
+                self.past_emotions.append(Emotion(emotion_string))
+            
+            def remove_outdated(self, max_age_seconds = 1.0):
+                self.past_emotions = list(filter(lambda e: not(e.is_outdated(max_age_seconds)), self.past_emotions))
+            
+            def remove_oldest(self, max_len = 50):
+                if len(self.past_emotions) > max_len:
+                    self.past_emotions = self.past_emotions[-max_len:]
+
+            def get_mode(self):
+                past_emotion_strings = [e.emotion_string for e in self.past_emotions]
+                mode = max(set(past_emotion_strings), key=past_emotion_strings.count)
+                return mode
+
+        emotion_store = EmotionStore()
+
         # start the webcam feed
         cap = cv2.VideoCapture(0)
         while True:
@@ -135,10 +167,16 @@ def emotion_detection_process(emotion_state, mode):
                 emotion_string = emotion_dict[maxindex]
                 cv2.putText(frame, emotion_string, (x+20, y-60), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
                 
+                # Update emotion store
+                emotion_store.add(emotion_string)
+                # emotion_store.remove_outdated()
+                emotion_store.remove_oldest()
+
                 # Update the current emotion used by the server process
                 with emotion_state.get_lock():
-                    print(f'===== setting emotion: {emotion_string} -> {str.encode(emotion_string)}')
-                    emotion_state.value = str.encode(emotion_string)
+                    mode_emotion = emotion_store.get_mode()
+                    print(f'===== setting emotion: {mode_emotion} -> {str.encode(mode_emotion)}')
+                    emotion_state.value = str.encode(mode_emotion)
 
             cv2.imshow('Video', cv2.resize(frame,(800,480),interpolation = cv2.INTER_CUBIC))
             if cv2.waitKey(1) & 0xFF == ord('q'):
