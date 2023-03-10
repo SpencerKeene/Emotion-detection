@@ -117,21 +117,21 @@ def emotion_detection_process(emotion_state, mode):
         emotion_dict = {0: "Angry", 1: "Disgusted", 2: "Fearful", 3: "Happy", 4: "Neutral", 5: "Sad", 6: "Surprised"}
 
         # create store of past emotions
-        class Emotion:
-            def __init__(self, emotion_string):
-                self.emotion_string = emotion_string
-                self.time_recorded = time.time()
-            
-            def is_outdated(self, max_age_seconds = 1.0):
-                now = time.time()
-                return now > self.time_recorded + max_age_seconds
-
         class EmotionStore:
+            class Emotion:
+                def __init__(self, emotion_string):
+                    self.emotion_string = emotion_string
+                    self.time_recorded = time.time()
+                
+                def is_outdated(self, max_age_seconds = 1.0):
+                    now = time.time()
+                    return now > self.time_recorded + max_age_seconds
+                
             def __init__(self):
                 self.past_emotions = []
 
             def add(self, emotion_string):
-                self.past_emotions.append(Emotion(emotion_string))
+                self.past_emotions.append(self.Emotion(emotion_string))
             
             def remove_outdated(self, max_age_seconds = 1.0):
                 self.past_emotions = list(filter(lambda e: not(e.is_outdated(max_age_seconds)), self.past_emotions))
@@ -199,6 +199,8 @@ def emotion_server_process(emotion_state):
             with conn, emotion_state.get_lock():
                 print(f"Connected by {addr}, sending {emotion_state.value}")
                 conn.sendall(emotion_state.value)
+                conn.listen
+                
 
 
 if __name__ == '__main__':
