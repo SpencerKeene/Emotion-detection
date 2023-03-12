@@ -180,8 +180,9 @@ def emotion_detection_process(emotion_state, mode):
                 # Update the current emotion used by the server process
                 with emotion_state.get_lock():
                     mode_emotion = emotion_store.get_mode()
-                    print(f'===== setting emotion: {mode_emotion} -> {str.encode(mode_emotion)}')
-                    emotion_state.value = str.encode(mode_emotion)
+                    new_value = str.encode(mode_emotion)
+                    print(f'===== setting emotion: {mode_emotion} -> {new_value}')
+                    emotion_state.value = new_value
 
             cv2.imshow('Video', cv2.resize(frame,(800,480),interpolation = cv2.INTER_CUBIC))
             if cv2.waitKey(1) & 0xFF == ord('q'):
