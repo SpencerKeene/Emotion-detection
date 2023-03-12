@@ -131,6 +131,7 @@ def emotion_detection_process(emotion_state, mode):
                 self.past_emotions = []
 
             def add(self, emotion_string):
+                """ Saves an emotion in the store """
                 self.past_emotions.append(self.Emotion(emotion_string))
             
             def remove_outdated(self, max_age_seconds = 1.0):
@@ -144,6 +145,7 @@ def emotion_detection_process(emotion_state, mode):
                     self.past_emotions = self.past_emotions[-max_len:]
 
             def get_mode(self):
+                """ Returns the most common emotion saved in the store """
                 past_emotion_strings = [e.emotion_string for e in self.past_emotions]
                 mode = max(set(past_emotion_strings), key=past_emotion_strings.count)
                 return mode
