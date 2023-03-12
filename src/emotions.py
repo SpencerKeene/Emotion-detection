@@ -207,8 +207,6 @@ def emotion_server_process(emotion_state):
                 conn.sendall(emotion_state.value)
                 conn.listen
                 
-
-
 if __name__ == '__main__':
     # initialize emotion as a string at least as long as the longest emotion
     emotion_state = Array('c', str.encode('xxxxxxxxx'))
