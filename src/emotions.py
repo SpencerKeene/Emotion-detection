@@ -139,7 +139,7 @@ def emotion_detection_process(emotion_state, mode):
                 not_outdated = lambda emotion: not(emotion.is_outdated(max_age_seconds))
                 self.past_emotions = list(filter(not_outdated, self.past_emotions))
             
-            def remove_oldest(self, max_len = 50):
+            def remove_oldest(self, max_len = 60):
                 """ Deletes the oldest stored emotions to limit the store's size to a given maximum length """
                 if len(self.past_emotions) > max_len:
                     self.past_emotions = self.past_emotions[-max_len:]
